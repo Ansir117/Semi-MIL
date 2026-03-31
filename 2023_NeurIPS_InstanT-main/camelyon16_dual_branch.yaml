@@ -1,0 +1,90 @@
+# camelyon16_weno_low_mem.yaml
+# 低显存配置 (适用于24GB GPU)
+
+algorithm: instant_dual
+seed: 0
+
+# ===== Dataset Configuration =====
+dataset: camelyon16
+num_labels: 500
+num_classes: 2
+img_size: 224
+data_dir: '/home/xiaoyuan/Data3/CAMELYON16'
+
+# ===== WENO Dual-Branch Parameters =====
+teacher_warmup_iter: 3000          # 减少预热
+student_update_period: 2
+stu_loss_weight_neg: 0.1
+
+# ===== InstanT Core Parameters =====
+p_cutoff: 0.90
+T: 0.4
+hard_label: True
+ema_p: 0.999
+
+# ===== Training Configuration =====
+epoch: 200                         # 减少epoch
+num_train_iter: 20000              # 减少总迭代
+num_eval_iter: 500
+num_log_iter: 100
+num_warmup_iter: 300
+
+# ===== Optimizer Configuration =====
+optim: AdamW
+lr: 0.0001                         # 稍微提高学习率补偿小batch
+momentum: 0.9
+weight_decay: 0.001
+layer_decay: 0.95
+amp: True                          # 必须开启混合精度
+clip_grad: 1.0
+
+# ===== Data Loading (关键：降低显存使用) =====
+batch_size: 16                     # 从64降到16
+uratio: 2                          # 从4降到2 (unlabeled batch = 32)
+eval_batch_size: 32                # 从128降到32
+num_workers: 4                     # 减少worker
+ema_m: 0.999
+
+# ===== Data Augmentation =====
+crop_ratio: 0.9
+
+# ===== Network Architecture =====
+net: resnet50
+net_from_name: False
+use_pretrain: True
+pretrain_path: ''
+
+# ===== Data Imbalance =====
+lb_imb_ratio: 1
+ulb_imb_ratio: 1
+ulb_num_labels: -1
+
+# ===== SSL Strategy =====
+include_lb_to_ulb: True
+use_cat: True
+train_sampler: RandomSampler
+ulb_loss_ratio: 2.0
+
+# ===== Save and Log Settings =====
+save_dir: ./saved_models
+save_name: camelyon16_weno_low_mem
+overwrite: True
+resume: False
+load_path: ''
+
+# ===== Visualization =====
+use_tensorboard: True
+use_wandb: False
+use_aim: False
+
+# ===== GPU Settings =====
+gpu: 0
+world_size: 1
+rank: 0
+multiprocessing_distributed: False
+dist_url: tcp://127.0.0.1:11111
+dist_backend: nccl
+
+# ===== Slide Aggregation =====
+slide_aggregation_method: max
+save_slide_results: True

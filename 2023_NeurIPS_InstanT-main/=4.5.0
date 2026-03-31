@@ -1,0 +1,6 @@
+Looking in indexes: https://pypi.tuna.tsinghua.edu.cn/simple
+Collecting opencv-python
+  Using cached https://pypi.tuna.tsinghua.edu.cn/packages/2c/8b/90eb44a40476fa0e71e05a0283947cfd74a5d36121a11d926ad6f3193cc4/opencv_python-4.11.0.86-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (63.0 MB)
+Requirement already satisfied: numpy>=1.17.0 in /home/xiaoyuan/anaconda3/envs/instant_ssl/lib/python3.8/site-packages (from opencv-python) (1.24.1)
+Installing collected packages: opencv-python
+Successfully installed opencv-python-4.11.0.86

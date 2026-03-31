@@ -1,0 +1,105 @@
+# config/classic_cv/instant/instant_camelyon16_final.yaml
+# CAMELYON16数据集InstanT半监督学习配置文件
+# 适配training/testing目录结构，阳性:阴性=1:3
+
+# ===== 基本算法设置 =====
+algorithm: instant
+seed: 0
+
+# ===== 数据集配置 =====
+dataset: camelyon16
+num_labels: 500                                    # 此值将被自动调整为实际标记样本数
+num_classes: 2                                     # 二分类：阴性(0)/阳性(1)
+img_size: 224                                      # 输入图像尺寸
+
+# ===== 数据路径设置 =====
+data_dir: '/home/xiaoyuan/Data3/CAMELYON16'        # 数据根目录
+# 预期结构:
+# ├── training/ (包含normal_*, tumor_*文件夹)
+# └── testing/ (包含test_*文件夹)
+
+# ===== 数据处理配置 =====
+max_samples_per_slide: null                        # null表示处理所有patch，不限制数量
+
+# ===== InstanT算法特定参数 =====
+estimation: class                                  # 估计方式: 'class' 或 'instance'
+scale: 1.0                                         # 尺度参数
+warm_up_it: 2000                                   # 预热迭代次数
+
+# ===== 半监督学习核心参数 =====
+p_cutoff: 0.95                                     # 伪标签置信度阈值
+T: 0.5                                             # 温度参数
+hard_label: True                                   # 使用硬标签
+ema_p: 0.999                                       # InstanT的EMA动量
+
+# ===== 训练配置 =====
+epoch: 200                                         # 训练轮数
+num_train_iter: 20000                              # 总训练迭代次数
+num_eval_iter: 1000                                # 每1000次迭代评估一次
+num_log_iter: 200                                  # 每200次迭代记录日志
+num_warmup_iter: 0                                 # cosine warmup iterations
+
+# ===== 优化器配置 =====
+optim: AdamW                                       # 优化器
+lr: 0.0001                                         # 学习率
+momentum: 0.9                                      # SGD动量
+weight_decay: 0.0005                               # 权重衰减
+layer_decay: 1.0                                   # 层级学习率衰减
+amp: False                                         # 混合精度训练
+clip_grad: 1.0                                     # 梯度裁剪
+
+# ===== 数据加载配置 =====
+batch_size: 32                                     # 训练批次大小
+uratio: 3                                          # 无标签与有标签数据比例
+eval_batch_size: 64                                # 评估批次大小
+num_workers: 8                                     # 数据加载线程数
+ema_m: 0.999                                       # EMA模型动量
+
+# ===== 数据增强配置 =====
+crop_ratio: 0.875                                  # 图像裁剪比例
+
+# ===== 网络架构配置 =====
+net: resnet50                                      # 主干网络
+net_from_name: False                               # 是否从名称创建网络
+use_pretrain: True                                 # 使用ImageNet预训练权重
+pretrain_path: ''                                  # 预训练模型路径
+
+# ===== 数据不平衡处理 =====
+lb_imb_ratio: 1                                    # 有标签数据不平衡比例
+ulb_imb_ratio: 1                                   # 无标签数据不平衡比例
+ulb_num_labels: -1                                 # 无标签数据数量
+
+# ===== 半监督学习策略 =====
+include_lb_to_ulb: True                            # 将有标签数据包含到无标签数据中
+use_cat: True                                      # 使用concatenation操作
+train_sampler: RandomSampler                       # 训练采样器
+
+# ===== 损失权重 =====
+ulb_loss_ratio: 1.0                                # 无监督损失权重
+
+# ===== 保存和日志设置 =====
+save_dir: ./saved_models                           # 模型保存目录
+save_name: camelyon16_instant                      # 实验名称
+overwrite: True                                    # 覆盖已存在的模型
+resume: False                                      # 是否恢复训练
+load_path: ''                                      # 加载模型路径
+
+# ===== 可视化和监控 =====
+use_tensorboard: True                              # 使用TensorBoard
+use_wandb: False                                   # 使用Weights & Biases
+use_aim: False                                     # 使用Aim
+
+# ===== GPU设置 =====
+gpu: 0                                             # 使用的GPU ID
+
+# ===== 分布式训练设置 =====
+world_size: 1                                      # 分布式训练节点数
+rank: 0                                            # 节点排名
+multiprocessing_distributed: False                # 多进程分布式训练
+dist_url: tcp://127.0.0.1:11111                   # 分布式训练URL
+dist_backend: nccl                                 # 分布式后端
+
+# ===== 5次独立实验配置 (统一修改入口: 只需修改下面这个数值) =====
+num_positive_slides: 10                            # 每次实验选择的阳性slide数量
+num_negative_slides: 10                            # 每次实验选择的阴性slide数量
+negative_positive_ratio: 3                         # 阴性:阳性比例，修改此处即可改变比例

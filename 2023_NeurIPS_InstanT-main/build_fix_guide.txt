@@ -1,0 +1,17 @@
+
+# build.py修复指南
+
+1. 打开 semilearn/core/utils/build.py
+2. 找到 get_dataset 函数
+3. 在函数中添加 camelyon16 的条件判断:
+
+elif dataset == 'camelyon16':
+    return get_camelyon16(args, alg=algorithm, dataset=dataset, 
+                         num_labels=num_labels, num_classes=num_classes, 
+                         data_dir=data_dir, include_lb_to_ulb=include_lb_to_ulb)
+
+4. 确保在文件顶部导入了 get_camelyon16:
+from semilearn.datasets import get_camelyon16
+
+5. 保存文件并重新测试
+    

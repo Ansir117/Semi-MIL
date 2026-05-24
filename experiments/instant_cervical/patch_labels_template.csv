@@ -1,0 +1,4 @@
+patch_path,label
+slide_name_001/patch_0001.png,1
+slide_name_001/patch_0002.png,0
+/absolute/path/to/train_datasets/P/slide_name_002/patch_0003.png,1

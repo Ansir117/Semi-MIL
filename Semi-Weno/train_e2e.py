@@ -417,18 +417,18 @@ class E2EHybridTrainer:
         for batch_idx, (images, labels, _) in enumerate(tqdm(self.train_bag_loader, desc='Teacher')):
             # images: [1, N, C, H, W]
             images = images.squeeze(0).to(self.device)
-            slide_label = labels[1].to(self.device)
+            slide_label = labels[1].to(self.device).long().view(-1)
 
             # Forward
             feat = self.encoder(images)  # [N, D]
             instance_attn, bag_pred, _, _ = self.teacher_head(feat)
 
             # Loss
-            loss = criterion(bag_pred, slide_label.unsqueeze(0))
+            loss = criterion(bag_pred, slide_label)
 
             # 添加max instance loss
             max_idx = torch.argmax(instance_attn[:, 1])
-            loss += 0.5 * criterion(instance_attn[max_idx:max_idx + 1], slide_label.unsqueeze(0))
+            loss += 0.5 * criterion(instance_attn[max_idx:max_idx + 1], slide_label)
 
             self.opt_encoder.zero_grad()
             self.opt_teacher.zero_grad()

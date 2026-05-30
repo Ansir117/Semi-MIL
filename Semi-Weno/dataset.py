@@ -402,34 +402,27 @@ class SSLPatchDataset(Dataset):
         slide_label = self.base_dataset.slide_labels[real_idx]
         slide_idx = self.base_dataset.slide_indices[real_idx]
 
+        # 为避免 DataLoader 默认 collate 在字典 key 不一致时报错，
+        # 统一返回 image/image_w/image_s 三个键。
+        img_w = self.transform_weak(img)
         if is_labeled:
-            # 有标签数据：只返回弱增强
-            img_w = self.transform_weak(img)
-            has_gt = self.base_dataset.patch_label_has_gt[real_idx] if hasattr(self.base_dataset, 'patch_label_has_gt') else 0
-            return {
-                'image': img_w,
-                'patch_label': torch.tensor(patch_label),
-                'slide_label': torch.tensor(slide_label),
-                'slide_idx': torch.tensor(slide_idx),
-                'is_labeled': torch.tensor(True),
-                'has_gt': torch.tensor(has_gt),
-                'index': real_idx
-            }
+            # 有标签数据也补一个强增强占位，保证 batch 内 key 对齐
+            img_s = img_w
         else:
-            # 无标签数据：返回弱增强和强增强
-            img_w = self.transform_weak(img)
             img_s = self.transform_strong(img)
-            has_gt = self.base_dataset.patch_label_has_gt[real_idx] if hasattr(self.base_dataset, 'patch_label_has_gt') else 0
-            return {
-                'image_w': img_w,
-                'image_s': img_s,
-                'patch_label': torch.tensor(patch_label),  # 用于评估，训练时不用
-                'slide_label': torch.tensor(slide_label),
-                'slide_idx': torch.tensor(slide_idx),
-                'is_labeled': torch.tensor(False),
-                'has_gt': torch.tensor(has_gt),
-                'index': real_idx
-            }
+
+        has_gt = self.base_dataset.patch_label_has_gt[real_idx] if hasattr(self.base_dataset, 'patch_label_has_gt') else 0
+        return {
+            'image': img_w,       # 供 labeled 分支使用
+            'image_w': img_w,     # 供 unlabeled 弱增强分支使用
+            'image_s': img_s,     # 供 unlabeled 强增强分支使用
+            'patch_label': torch.tensor(patch_label),  # unlabeled 时仅评估使用
+            'slide_label': torch.tensor(slide_label),
+            'slide_idx': torch.tensor(slide_idx),
+            'is_labeled': torch.tensor(bool(is_labeled)),
+            'has_gt': torch.tensor(has_gt),
+            'index': real_idx
+        }
 
 
 # ==================== 兼容原WENO的类名 ====================

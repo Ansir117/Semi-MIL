@@ -28,6 +28,32 @@ python3 train_Cervical_BagDistillationDSMIL_SharedEnc_Similarity_StuFilterSmooth
   --epochs 300
 ```
 
+## CAMELYON16 feature workflow (ResNet50)
+
+### 1) Extract features first
+
+```bash
+cd Semi-Weno
+python3 extract_features_resnet50.py \
+  --data_dir /home/xiaoyuan/Data3/CAMELYON16 \
+  --output_dir /home/xiaoyuan/Data3/CAMELYON16/features_resnet50 \
+  --split both
+```
+
+This generates:
+- `/home/xiaoyuan/Data3/CAMELYON16/features_resnet50/training_features.npz`
+- `/home/xiaoyuan/Data3/CAMELYON16/features_resnet50/testing_features.npz`
+
+### 2) Train Semi-WENO on pre-extracted features
+
+```bash
+cd Semi-Weno
+python3 train_feat.py \
+  --feature_root /home/xiaoyuan/Data3/CAMELYON16/features_resnet50 \
+  --feature_input_dim 2048 \
+  --feature_dim 512
+```
+
 ## Notes
 
 - Keep your dataset layout unchanged as expected by the original WENO code.

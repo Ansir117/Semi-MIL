@@ -35,7 +35,7 @@ class FeatureProjector(nn.Module):
         else:
             self.projector = nn.Sequential(
                 nn.Linear(input_dim, feature_dim),
-                nn.BatchNorm1d(feature_dim),
+                nn.LayerNorm(feature_dim),
                 nn.ReLU(inplace=True),
             )
 
@@ -166,6 +166,21 @@ class FeatureHybridTrainer:
         self.args = args
         self.current_alpha = args.ssl_alpha_start
 
+    def _safe_ssl_forward(self, feat_input):
+        """
+        BatchNorm-safe SSL forward.
+        If effective batch size is 1, run SSL classifier in eval mode
+        to avoid BatchNorm runtime error.
+        """
+        if feat_input.shape[0] > 1:
+            return self.ssl_classifier(feat_input)
+        prev_mode = self.ssl_classifier.training
+        self.ssl_classifier.eval()
+        out = self.ssl_classifier(feat_input)
+        if prev_mode:
+            self.ssl_classifier.train()
+        return out
+
     def train(self):
         for epoch in range(self.args.epochs):
             self.current_alpha = get_alpha(
@@ -221,7 +236,7 @@ class FeatureHybridTrainer:
                 has_gt_lb = batch["has_gt"][labeled_mask].to(self.device).bool()
                 with torch.no_grad():
                     proj_lb = self.projector(feat_lb)
-                ssl_logits_lb = self.ssl_classifier(proj_lb.detach())
+                ssl_logits_lb = self._safe_ssl_forward(proj_lb.detach())
                 valid = has_gt_lb & (labels_lb >= 0)
                 if valid.sum() > 0:
                     loss_labeled = criterion(ssl_logits_lb[valid], labels_lb[valid].long()).mean()
@@ -236,7 +251,7 @@ class FeatureHybridTrainer:
                     attn_score, _, _, _ = self.teacher_head(proj_w)
                     attn_prob = torch.softmax(attn_score, dim=1)[:, 1]
                     proj_s = self.projector(feat_s)
-                ssl_logits_ulb = self.ssl_classifier(proj_s.detach())
+                ssl_logits_ulb = self._safe_ssl_forward(proj_s.detach())
                 neg_mask = slide_lb == 0
                 loss_neg = torch.tensor(0.0, device=self.device)
                 if neg_mask.sum() > 0:
@@ -398,8 +413,8 @@ def main():
     )
 
     train_bag_loader = torch.utils.data.DataLoader(train_bag_ds, batch_size=1, shuffle=True, num_workers=args.num_workers)
-    train_patch_loader = torch.utils.data.DataLoader(train_patch_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
-    train_ssl_loader = torch.utils.data.DataLoader(train_ssl_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
+    train_patch_loader = torch.utils.data.DataLoader(train_patch_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, drop_last=True)
+    train_ssl_loader = torch.utils.data.DataLoader(train_ssl_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, drop_last=True)
     test_patch_loader = torch.utils.data.DataLoader(test_patch_ds, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
     projector = FeatureProjector(args.feature_input_dim, args.feature_dim).to(device)

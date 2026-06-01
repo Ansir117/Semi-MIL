@@ -81,7 +81,7 @@ class ImageEncoder(nn.Module):
         if in_features != feature_dim:
             self.projector = nn.Sequential(
                 nn.Linear(in_features, feature_dim),
-                nn.BatchNorm1d(feature_dim),
+                nn.LayerNorm(feature_dim),
                 nn.ReLU(inplace=True)
             )
         else:
@@ -378,6 +378,21 @@ class E2EHybridTrainer:
 
         self.current_alpha = args.ssl_alpha_start
 
+    def _safe_ssl_forward(self, feat_input):
+        """
+        BatchNorm-safe SSL forward.
+        If effective batch size is 1, run SSL classifier in eval mode
+        to avoid BatchNorm runtime error.
+        """
+        if feat_input.shape[0] > 1:
+            return self.ssl_classifier(feat_input)
+        prev_mode = self.ssl_classifier.training
+        self.ssl_classifier.eval()
+        out = self.ssl_classifier(feat_input)
+        if prev_mode:
+            self.ssl_classifier.train()
+        return out
+
     def train(self):
         for epoch in range(self.args.epochs):
             # 更新alpha
@@ -479,7 +494,7 @@ class E2EHybridTrainer:
                     with torch.no_grad():
                         feat_lb = self.encoder(images_lb)
 
-                    ssl_logits_lb = self.ssl_classifier(feat_lb.detach())
+                    ssl_logits_lb = self._safe_ssl_forward(feat_lb.detach())
                     valid_lb = has_gt_lb & (labels_lb >= 0)
                     if valid_lb.sum() > 0:
                         loss_labeled = criterion(ssl_logits_lb[valid_lb], labels_lb[valid_lb].long()).mean()
@@ -503,7 +518,7 @@ class E2EHybridTrainer:
                         # 强增强的特征
                         feat_ulb_s = self.encoder(images_ulb_s)
 
-                    ssl_logits_ulb = self.ssl_classifier(feat_ulb_s.detach())
+                    ssl_logits_ulb = self._safe_ssl_forward(feat_ulb_s.detach())
 
                     # 阴性slide中的patch -> 标签0
                     neg_mask = slide_labels == 0
@@ -544,7 +559,7 @@ class E2EHybridTrainer:
                     attn_scores, _, _, _ = self.teacher_head(feat)
                     attn_prob = torch.softmax(attn_scores, dim=1)[:, 1]
 
-                ssl_logits = self.ssl_classifier(feat.detach())
+                ssl_logits = self._safe_ssl_forward(feat.detach())
 
                 # 有标签样本
                 has_label = (patch_has_gt > 0) & (patch_labels >= 0)
@@ -855,12 +870,12 @@ def main():
 
     # SSL分类器: 使用有标签+无标签patches (区分对待)
     train_ssl_loader = torch.utils.data.DataLoader(
-        train_ssl_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers
+        train_ssl_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, drop_last=True
     )
 
     # Student: 使用所有patches
     train_patch_loader = torch.utils.data.DataLoader(
-        train_patch_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers
+        train_patch_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, drop_last=True
     )
 
     # 测试
